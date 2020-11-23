@@ -16,10 +16,11 @@ logging.basicConfig(
 )
 
 db_settings = {
-    "host": "r-3306-ecs-shopdog-prod.service.consul:3306",
+    "host": "r-3306-ecs-shopdog-prod.service.consul",
+    "port": 3306,
     "user": "u_sync_oplog_ro",
     "password": "5Drg#TKO9t8B!E^%",
-    "name": "db_shopdog",
+    "db": "db_shopdog",
     "table": "sys_op_log"
 }
 
@@ -73,18 +74,16 @@ class OperatorMysql(object):
         self.duration = timedelta(minutes=10)  # 滚动查询窗口大小, 默认为10min
         self.yesterday = (date.today() + timedelta(days=-1)).strftime("%Y-%m-%d")
         self.start_time = f"{self.yesterday} 00:00:00"
-        self.end_time = f"{self.yesterday} 23:59:59"
         self.query_time = datetime.strptime(self.start_time, "%Y-%m-%d %H:%M:%S")  # 查询左边界
+        self.end_time = datetime.strptime(f"{self.yesterday} 23:59:59", "%Y-%m-%d %H:%M:%S")
         self.es_cli = OperationES()
 
-    def reset_query_time(self):
-        self.query_time + self.duration
-
     def __enter__(self):
-        self.conn = pymysql.connect(host='localhost',
-                                    user='user',
-                                    password='passwd',
-                                    db='db',
+        self.conn = pymysql.connect(host=db_settings['host'],
+                                    port=db_settings['port'],
+                                    user=db_settings['user'],
+                                    password=db_settings['password'],
+                                    db=db_settings['db'],
                                     charset='utf8mb4',
                                     cursorclass=pymysql.cursors.DictCursor)
         return self
@@ -92,18 +91,30 @@ class OperatorMysql(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.conn.close()
 
+    def reset_query_time(self):
+        self.query_time += self.duration
+
     def query_and_export(self):
         with self.conn.cursor() as cursor:
-            cursor.execute(self.build_sql())
-            rows = cursor.fetchall()
-            if not rows:
-                return
-            self.es_cli.bulk_insert(self.__format_data(rows))
+            while True:
+                sql = self.build_sql()
+                if not sql:
+                    break
+                cursor.execute(sql)
+                rows = cursor.fetchall()
+                if rows:
+                    self.es_cli.bulk_insert(self.__format_data(rows))
+                self.reset_query_time()
 
     def build_sql(self):
         left_time = self.query_time
         right_time = left_time + self.duration
-        return f'SELECT * FROM {db_settings["name"]} WHERE op_time >= {left_time} AND op_time < {right_time}'
+
+        if right_time >= self.end_time:  # 处理越界
+            right_time = self.end_time
+        if left_time < right_time:
+            return f'SELECT * FROM {db_settings["table"]} ' + \
+                   f'WHERE create_time >= \'{left_time}\' AND create_time < \'{right_time}\';'
 
     @staticmethod
     def __format_data(rows):
@@ -117,7 +128,7 @@ class OperatorMysql(object):
             data['op_module'] = row['op_module']
             data['op_type'] = row['op_type']
             data['op_url'] = row['op_url']
-            resp.append(data)
+            resp.append(dict(data))
         return resp
 
 
