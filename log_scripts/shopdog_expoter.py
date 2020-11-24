@@ -6,9 +6,10 @@ from elasticsearch import Elasticsearch, helpers
 
 BRAND = "shopdog"
 SYSTERM = "shopdog"
+ENV = 'prod'
 
 logging.basicConfig(
-    filename=f'/var/log/{BRAND}-{SYSTERM}.log',
+    filename=f'/var/log/{BRAND}-{SYSTERM}-{ENV}.log',
     filemode='a',
     format='%(levelname)s %(asctime)s %(pathname)s:%(lineno)s %(process)d %(thread)d %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
@@ -29,7 +30,7 @@ es_settings = {
     "port": 80,
     "user": "security",
     "password": "nuR1GGNL",
-    "index": f"security-{BRAND}-{SYSTERM}",  # 索引规范：security-{品牌}-{系统}
+    "index": f"security-{BRAND}-{SYSTERM}-{ENV}",  # 索引规范：security-{品牌}-{系统}
 }
 
 
