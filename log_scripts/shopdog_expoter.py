@@ -62,7 +62,7 @@ class OperationES(object):
             }
             new_data.append(temp)
         try:
-            helpers.streaming_bulk(self.es, new_data)
+            helpers.bulk(self.es, new_data)
         except Exception as err:
             logging.error(f"Failed bulk insert, err: {err}")
 
@@ -122,8 +122,7 @@ class OperatorMysql(object):
         resp = []
         for row in rows:
             data = collections.OrderedDict()
-            data['@timestamp'] = datetime.strptime(row["create_time"], '%Y-%m-%d %H:%M:%S').strftime(
-                '%Y-%m-%dT%H:%M:%S+0800')
+            data['@timestamp'] = row["create_time"].strftime('%Y-%m-%dT%H:%M:%S+0800')
             data['user_name'] = row['user_login']
             data['user_id'] = row['user_id']
             data['op_module'] = row['op_module']

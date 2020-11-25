@@ -21,7 +21,7 @@ db_settings = {
     "user": "u_sync_oplog_ro",
     "password": "5Drg#TKO9t8B!E^%",
     "db": "pacs_stb",
-    "table": "t_sys_export_log"
+    "table": "pacs.t_sys_export_log"
 }
 
 es_settings = {
@@ -61,7 +61,7 @@ class OperationES(object):
             }
             new_data.append(temp)
         try:
-            helpers.streaming_bulk(self.es, new_data)
+            helpers.bulk(self.es, new_data)
         except Exception as err:
             logging.error(f"Failed bulk insert, err: {err}")
 
@@ -79,8 +79,8 @@ class OperatorOracle(object):
         self.es_cli = OperationES()
 
     def __enter__(self):
-        self.conn = oracle.connect(f'{db_settings["user"]}/{db_settings["password"]}' + \
-                                   f'{db_settings["host"]}/{db_settings["db"]}')
+        self.conn = oracle.connect("%s/%s@%s/%s" % (db_settings['user'], db_settings['password'], db_settings['host'],
+                                                    db_settings['db']))
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -98,7 +98,9 @@ class OperatorOracle(object):
                 cursor.execute(sql)
                 rows = cursor.fetchall()
                 if rows:
-                    self.es_cli.bulk_insert(self.__format_data(rows))
+                    desc = [d[0].lower() for d in cursor.description]
+                    result = [dict(zip(desc, row)) for row in rows]
+                    self.es_cli.bulk_insert(self.__format_data(result))
                 self.reset_query_time()
 
     def build_sql(self):

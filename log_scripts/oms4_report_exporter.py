@@ -19,7 +19,7 @@ logging.basicConfig(
 
 psql_settings = {
     "host": "10.11.110.80",
-    "port": 3306,
+    "port": 5432,
     "user": "u_sync_oplog_ro",
     "password": "5Drg#TKO9t8B!E^%",
     "db": "db_dms",
@@ -72,7 +72,7 @@ class OperationES(object):
             }
             new_data.append(temp)
         try:
-            helpers.streaming_bulk(self.es, new_data)
+            helpers.bulk(self.es, new_data)
         except Exception as err:
             logging.error(f"Failed bulk insert, err: {err}")
 
