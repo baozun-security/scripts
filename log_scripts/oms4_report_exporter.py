@@ -23,7 +23,7 @@ psql_settings = {
     "user": "u_sync_oplog_ro",
     "password": "5Drg#TKO9t8B!E^%",
     "db": "db_dms",
-    "table": "report_task_info"
+    "table": "dms.report_task_info"
 }
 
 msql_settings = {
